@@ -1,0 +1,8 @@
+[flake8]
+ignore = E127, E701, E117, E125, W503
+filename = *.py
+exclude =
+    .git,
+    __pycache__
+max-line-length = 140
+max-complexity = 10
