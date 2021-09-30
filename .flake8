@@ -1,5 +1,5 @@
 [flake8]
-ignore = E127, E701, E117, E125, W503
+ignore = E126, E127, E701, E117, E125, W503
 filename = *.py
 exclude =
     .git,

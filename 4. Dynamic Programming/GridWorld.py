@@ -114,22 +114,24 @@ class GridWorld(Environment, metaclass=abc.ABCMeta):
         else:
             return None
 
-    def __calculate_next_state(self, action: Actions) -> state:
+    def _calculate_next_state(self, action: Actions) -> state:
         state_row = self._current_state // self._state_row_size
         state_position_in_row = self._current_state - (state_row * self._state_row_size)
-        if action is GridWorld.Actions.UP:
+        if GridWorld.Actions(action) is GridWorld.Actions.UP:
             return self._current_state - self._state_row_size if state_row > 0 else self._current_state
-        elif action is GridWorld.Actions.DOWN:
+        elif GridWorld.Actions(action) is GridWorld.Actions.DOWN:
             num_rows = ceil(float(self._num_states) / float(self._state_row_size))
             return self._current_state + self._state_row_size if state_row < num_rows else self._current_state
-        elif action is GridWorld.Actions.RIGHT:
+        elif GridWorld.Actions(action) is GridWorld.Actions.RIGHT:
             return self._current_state + 1 if (state_position_in_row < self._state_row_size - 1) and (self._current_state < (self._num_states - 1)) else self._current_state  # noqa: E501
-        else:  # action is LEFT
+        elif GridWorld.Actions(action) is GridWorld.Actions.LEFT:
             # state position in row can never be less than zero, being zero always
             # the most left possible place in a row
             return self._current_state - 1 if state_position_in_row > 0 else self._current_state
+        else:
+            return None
 
-    def __getActionProbabilities(self, action: Actions) -> Tuple[List[Actions], List[t_prob]]:
+    def _getActionProbabilities(self, action: Actions) -> Tuple[List[Actions], List[t_prob]]:
         state_overriding_actions = self._action_overriding_probs[self._current_state]  # aux. variable holding the probs per action
         overriding_action_list = [a for a in state_overriding_actions.keys() if a is not action]
         action_overriding_probs = \
@@ -139,7 +141,7 @@ class GridWorld(Environment, metaclass=abc.ABCMeta):
         return overriding_action_list, action_overriding_probs
 
     def GetNext_SR(self, action: Actions) -> Tuple[state, reward]:
-        overriding_action_list, action_overriding_probs = self.__getActionProbabilities(action)
+        overriding_action_list, action_overriding_probs = self._getActionProbabilities(action)
         action_to_be_taken = choices(overriding_action_list, weights=action_overriding_probs, k=1)[0]
 
         state_reward_from_irregular_transition = self.__check_for_irregular_transitions(action_to_be_taken)
@@ -147,7 +149,7 @@ class GridWorld(Environment, metaclass=abc.ABCMeta):
             self._current_state = state_reward_from_irregular_transition[0]  # update the new current state
             return state_reward_from_irregular_transition
 
-        new_s = self.__calculate_next_state(action_to_be_taken)
+        new_s = self._calculate_next_state(action_to_be_taken)
         self._current_state = new_s  # update the new current state
         return (new_s, self._default_reward) if new_s not in self._terminal_states else (new_s, self._terminal_reward)
 
@@ -185,51 +187,34 @@ class StateValueGW(GridWorld):
         self.__state_visits = [0] * self._num_states
         self._current_state = randint(0, self._num_states - 1) if initial_state is None else initial_state
 
-    def getPossibleNextStsRew(self, action: GridWorld.Actions):
+    def getPossibleNextStsRew(self, action: GridWorld.Actions) -> List[Tuple]:  # noqa_ E501
         # irregular_transitions: Dict[state, Dict[Actions, Tuple[state, reward]]] = None,
         # action_overriding_probs: Dict[state, Dict[Actions, t_prob]] or t_prob = None)
-        actions, action_probs = self.__getActionProbabilities(action)
+        actions, action_probs = self._getActionProbabilities(action)
+        actions__action_probs = [(actions[i], action_probs[i]) for i in range(len(actions))]
 
-        if self._irregular_transitions is not None and self._current_state in self._irregular_transitions:
-            # get the next state for each action that:
-            #   * is present in the actions probability dictionary
-            #   * is NOT present in the irregular transitions dictionary
-            # for the current state
-            # (i.e. the next states of the 'regular' transitions)
-            state_prime = [self.__calculate_next_state(action) for action in actions
-                            if action not in self._irregular_transitions[self._current_state]
-                                and action in self._action_overriding_probs[self._current_state]]
-            # get an array with the regular rewards for each one of the state primes...
-            rewards = [self._default_reward] * len(state_prime)
+        state_prime__probs = []
+        rewards = []
 
-            # get all the tuples of action - reward of the actions that:
-            #   * are present in the irregular transition dictionary (for the current state)
-            #   * are present in the actions probability dictionary (for the current state)
-            state_reward_tuple = [t for a in self._irregular_transitions[self._current_state].keys()
-                                    for t in self._irregular_transitions[self._current_state].values()
-                                    if a in self._action_overriding_probs[self._current_state]]
-            # extend the 'state_prime' list with the 'state' elements of the gotten tuples list
-            # (i.e. first element, or element 0 of each one of the tuples on list 'state_reward_tuple')
-            state_prime.extend(s[0] for s in state_reward_tuple)
-            # extend the 'rewards' list with the 'reward' elements of the gotten tuples list
-            # (i.e. second element, or element 1 of each one of the tuples on list 'state_reward_tuple')
-            rewards.extend(r[1] for r in state_reward_tuple)
-        else:
-            # get the next states for each action that appears in the action probabilities dictionary
-            state_prime = [self.__calculate_next_state(action) for action in actions
-                            if action in self._action_overriding_probs[self._current_state]]
-            # get an array with the regular rewards for each one of the state primes...
-            rewards = [self._default_reward] * len(state_prime)
-        # assert there are equal number of next states and action probabilities
-        # (or next state probabilities)
-        assert len(state_prime) is len(action_probs), "Number of next states is not consistent with number of next state probabilities."
-        # assert there are equal number of next states and rewards
-        assert len(state_prime) is len(rewards), "Number of next states is not consistent with number of rewards."
+        for a, p in actions__action_probs:
+            if a in self._action_overriding_probs[self._current_state]:
+                if self._irregular_transitions is not None and a in self._irregular_transitions[self._current_state]:
+                    state_prime__probs.append(
+                        (self._irregular_transitions[self._current_state][a][0], p)
+                    )
+                    rewards.append(self._irregular_transitions[self._current_state][a][1])
+                else:
+                    state_prime__probs.append((self._calculate_next_state(a), p))
+                    rewards.append(self._default_reward)
 
-        ret_list = [()]
-        # state_prime = 
-        # action_probs.pop()
-        # return (state_prime, state_prime_p, reward)
+        assert len(state_prime__probs) is len(rewards), \
+            "Number of rewards is inconsistent with number of state primes and their probabilities."
+
+        # build the tupples to be returned in the list
+        sp = tuple([t[0] for t in state_prime__probs])
+        sp_probs = tuple([t[1] for t in state_prime__probs])
+        # tuple of rewards included directly in the returned list
+        return [sp, sp_probs, tuple(rewards)]
 
     @property
     def value_states(self) -> List[Environment.s_sa_value]:
