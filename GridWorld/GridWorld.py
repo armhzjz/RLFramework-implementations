@@ -200,7 +200,7 @@ class StateValueGW(GridWorld):
         self.__state_visits = [0] * self._num_states
         self._current_state = randint(0, self._num_states - 1) if initial_state is None else initial_state
 
-    def getPossibleNextStsRew(self, action: GridWorld.Actions, state: GridWorld.state = None) -> List[Tuple]:  # noqa_ E501
+    def getPossibleNextStsRew(self, action: GridWorld.Actions, state: GridWorld.state = None) -> List[Tuple]:
         # irregular_transitions: Dict[state, Dict[Actions, Tuple[state, reward]]] = None,
         # action_overriding_probs: Dict[state, Dict[Actions, t_prob]] or t_prob = None)
         actions, action_probs = self._getActionProbabilities(action) if state is None else self._getActionProbabilities(action, state)
@@ -262,6 +262,7 @@ class StateActionValueGW(GridWorld):
         super().__init__(num_states, state_row_size, default_reward, terminal_reward,
                             terminal_states, irregular_transitions, action_overriding_probs)
         self.__random_stateaction_values = random_stateaction_values
+        self.__lock = threading.Lock()
 
     def Init(self, initial_state: GridWorld.state = None):
         if self.__random_stateaction_values:
@@ -273,7 +274,15 @@ class StateActionValueGW(GridWorld):
 
     @property
     def stateAction_values(self) -> Dict[GridWorld.state, Dict[GridWorld.Actions, GridWorld.t_prob]]:
-        return self.__stateAction_values
+        with self.__lock_:
+            ret_val = self.__stateAction_values
+        return ret_val
+
+    @stateAction_values.setter
+    def stateAction_values(self, action_value: Dict[GridWorld.Actions, GridWorld.t_prob]) -> None:
+        assert type(action_value) == dict, "Value must be a diccionary AND it must be assigned to an element of property."
+        with self.__lock:
+            self.__stateAction_values = action_value
 
     @property
     def state_visits(self) -> List[Environment.state_visits]:
