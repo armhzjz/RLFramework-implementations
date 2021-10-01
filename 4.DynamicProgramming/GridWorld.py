@@ -1,6 +1,7 @@
 import abc
 import collections
 import itertools
+import threading
 from enum import IntEnum
 from math import ceil
 from typing import Tuple, List, Dict
@@ -114,25 +115,36 @@ class GridWorld(Environment, metaclass=abc.ABCMeta):
         else:
             return None
 
-    def _calculate_next_state(self, action: Actions) -> state:
-        state_row = self._current_state // self._state_row_size
-        state_position_in_row = self._current_state - (state_row * self._state_row_size)
+    def _calculate_next_state(self, action: Actions, state: state = None) -> state:
+        state_ = state if state is not None else self._current_state
+        state_row = state_ // self._state_row_size
+        state_position_in_row = state_ - (state_row * self._state_row_size)
         if GridWorld.Actions(action) is GridWorld.Actions.UP:
-            return self._current_state - self._state_row_size if state_row > 0 else self._current_state
+            return state_ - self._state_row_size if state_row > 0 else state_
         elif GridWorld.Actions(action) is GridWorld.Actions.DOWN:
-            num_rows = ceil(float(self._num_states) / float(self._state_row_size))
-            return self._current_state + self._state_row_size if state_row < num_rows else self._current_state
+            if 0 != self.num_states % self._state_row_size:
+                num_rows = ceil(float(self._num_states) / float(self._state_row_size))
+            else:
+                # if modulo is cero, we need to return number of row minus 1 to consider number of row '0'
+                # in the count
+                num_rows = (float(self._num_states) / float(self._state_row_size)) - 1
+            return state_ + self._state_row_size if state_row < num_rows else state_
         elif GridWorld.Actions(action) is GridWorld.Actions.RIGHT:
-            return self._current_state + 1 if (state_position_in_row < self._state_row_size - 1) and (self._current_state < (self._num_states - 1)) else self._current_state  # noqa: E501
+            return state_ + 1 if (state_position_in_row < self._state_row_size - 1) and (state_ < (self._num_states - 1)) else state_
         elif GridWorld.Actions(action) is GridWorld.Actions.LEFT:
             # state position in row can never be less than zero, being zero always
             # the most left possible place in a row
-            return self._current_state - 1 if state_position_in_row > 0 else self._current_state
+            return state_ - 1 if state_position_in_row > 0 else state_
         else:
             return None
 
-    def _getActionProbabilities(self, action: Actions) -> Tuple[List[Actions], List[t_prob]]:
-        state_overriding_actions = self._action_overriding_probs[self._current_state]  # aux. variable holding the probs per action
+    def _getActionProbabilities(self, action: Actions, state: state = None) -> Tuple[List[Actions], List[t_prob]]:
+        if state is None:
+            # aux. variable holding the probs per possible action
+            state_overriding_actions = self._action_overriding_probs[self._current_state]
+        else:
+            # aux. variable holding the probs per possible action
+            state_overriding_actions = self._action_overriding_probs[state]
         overriding_action_list = [a for a in state_overriding_actions.keys() if a is not action]
         action_overriding_probs = \
             [p for p, a in zip(state_overriding_actions.values(), state_overriding_actions.keys()) if a in overriding_action_list]
@@ -181,30 +193,32 @@ class StateValueGW(GridWorld):
         super().__init__(num_states, state_row_size, default_reward, terminal_reward,
                             terminal_states, irregular_transitions, action_overriding_probs)
         self.__random_state_values = random_state_values
+        self.__lock = threading.Lock()
 
     def Init(self, initial_state: GridWorld.state = None):
         self.__value_states = [uniform(1, 100)] * self._num_states if self.__random_state_values else [0] * self._num_states
         self.__state_visits = [0] * self._num_states
         self._current_state = randint(0, self._num_states - 1) if initial_state is None else initial_state
 
-    def getPossibleNextStsRew(self, action: GridWorld.Actions) -> List[Tuple]:  # noqa_ E501
+    def getPossibleNextStsRew(self, action: GridWorld.Actions, state: GridWorld.state = None) -> List[Tuple]:  # noqa_ E501
         # irregular_transitions: Dict[state, Dict[Actions, Tuple[state, reward]]] = None,
         # action_overriding_probs: Dict[state, Dict[Actions, t_prob]] or t_prob = None)
-        actions, action_probs = self._getActionProbabilities(action)
+        actions, action_probs = self._getActionProbabilities(action) if state is None else self._getActionProbabilities(action, state)
         actions__action_probs = [(actions[i], action_probs[i]) for i in range(len(actions))]
 
+        state_ = state if state is not None else self._current_state
         state_prime__probs = []
         rewards = []
 
         for a, p in actions__action_probs:
-            if a in self._action_overriding_probs[self._current_state]:
-                if self._irregular_transitions is not None and a in self._irregular_transitions[self._current_state]:
+            if a in self._action_overriding_probs[state_]:
+                if self._irregular_transitions is not None and a in self._irregular_transitions[state_]:
                     state_prime__probs.append(
-                        (self._irregular_transitions[self._current_state][a][0], p)
+                        (self._irregular_transitions[state_][a][0], p)
                     )
-                    rewards.append(self._irregular_transitions[self._current_state][a][1])
+                    rewards.append(self._irregular_transitions[state_][a][1])
                 else:
-                    state_prime__probs.append((self._calculate_next_state(a), p))
+                    state_prime__probs.append((self._calculate_next_state(a, state_), p))
                     rewards.append(self._default_reward)
 
         assert len(state_prime__probs) is len(rewards), \
@@ -218,12 +232,15 @@ class StateValueGW(GridWorld):
 
     @property
     def value_states(self) -> List[Environment.s_sa_value]:
-        return self.__value_states
+        with self.__lock:
+            ret_val = self.__value_states
+        return ret_val
 
     @value_states.setter
     def value_states(self, val: Environment.s_sa_value) -> None:
         assert type(val) != list, "Value must not be a list AND it must be assigned to an element of property."
-        self.__value_states = val
+        with self.__lock:
+            self.__value_states = val
 
     @property
     def state_visits(self) -> List[Environment.state_visits]:
