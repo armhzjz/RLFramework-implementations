@@ -83,7 +83,7 @@ class GridWorld(Environment, metaclass=abc.ABCMeta):
                 isinstance(list(self._irregular_transitions.keys())[0], int) and \
                 isinstance(list(self._irregular_transitions.values())[0], dict) and \
                 isinstance(list(list(self._irregular_transitions.values())[0].keys())[0], GridWorld.state) and \
-                isinstance(list(list(self._irregular_transitions.values())[0].values())[0], Tuple) and \
+                isinstance(list(list(self._irregular_transitions.values())[0].values())[0], tuple) and \
                 isinstance(list(list(self._irregular_transitions.values())[0].values())[0][0], GridWorld.state) and \
                 isinstance(list(list(self._irregular_transitions.values())[0].values())[0][1], GridWorld.reward), \
                 "Argument irregular_transitions must be either None or a complex dictionary. Take a look at its type hint."
@@ -184,7 +184,7 @@ class GridWorld(Environment, metaclass=abc.ABCMeta):
 class StateValueGW(GridWorld):
     def __init__(self, num_states: GridWorld.state = 16,
                     state_row_size: GridWorld.state = 4,
-                    default_reward: GridWorld.reward = -1.0,
+                    default_reward: GridWorld.reward = 0.0,
                     terminal_reward: GridWorld.reward = 0.0,
                     terminal_states: List[GridWorld.state] = [0, 15],
                     irregular_transitions: Dict[GridWorld.state, Dict[GridWorld.Actions, Tuple[GridWorld.state, GridWorld.reward]]] = None,
@@ -212,7 +212,9 @@ class StateValueGW(GridWorld):
 
         for a, p in actions__action_probs:
             if a in self._action_overriding_probs[state_]:
-                if self._irregular_transitions is not None and a in self._irregular_transitions[state_]:
+                if self._irregular_transitions is not None and \
+                    state_ in self._irregular_transitions and \
+                    a in self._irregular_transitions[state_]:
                     state_prime__probs.append(
                         (self._irregular_transitions[state_][a][0], p)
                     )
@@ -251,7 +253,7 @@ class StateValueGW(GridWorld):
 class StateActionValueGW(GridWorld):
     def __init__(self, num_states: GridWorld.state = 16,
                     state_row_size: GridWorld.state = 4,
-                    default_reward: GridWorld.reward = -1.0,
+                    default_reward: GridWorld.reward = 0.0,
                     terminal_reward: GridWorld.reward = 0.0,
                     terminal_states: List[GridWorld.state] = [0, 15],
                     irregular_transitions: Dict[GridWorld.state, Dict[GridWorld.Actions, Tuple[GridWorld.state, GridWorld.reward]]] = None,

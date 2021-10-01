@@ -34,28 +34,39 @@ class PolicyEvaluation(metaclass=abc.ABCMeta):
 class BellmanStateValulePolEval(PolicyEvaluation):
     def __init__(self, environment: GridWorld.Environment,
                     gamma: PolicyEvaluation.Discount = 0.9,
+                    theta: PolicyEvaluation.theta = 0.01,
                     policy: Dict[PolicyEvaluation.State, Dict[PolicyEvaluation.Actn, PolicyEvaluation.ActnProb]] or Dict[PolicyEvaluation.Actn, PolicyEvaluation.ActnProb] or None = None) -> None:  # noqa: E501
         super().__init__(environment, gamma, policy)
+        self.__policy_evaluation_theta = theta
 
     def __getExpectedReward(self, state: PolicyEvaluation.State) -> PolicyEvaluation.reward:
         actions = self._policy[state]
         expected_reward = 0
 
         for a, ap in zip(actions.keys(), actions.values()):
-            sp, sp_prob, r = self._environment.getPossibleNextStsRew(a)
+            sp, sp_prob, r = self._environment.getPossibleNextStsRew(a, state)
             state_prime__reward_summatory = 0
             for state_prime, state_prime_p, reward in zip(sp, sp_prob, r):
                 state_prime__reward_summatory += state_prime_p * (reward + self._gamma * self._environment.value_states[state_prime])
             expected_reward += ap * state_prime__reward_summatory
         return expected_reward
 
-    def evaluatePolicy(self, theta: PolicyEvaluation.theta = 0.01) -> None:
+    def evaluatePolicy(self, theta: PolicyEvaluation.theta = None) -> None:
+        temporal_theta = theta if theta is not None else self.__policy_evaluation_theta
+        delta = numpy.array([numpy.inf] * self._environment.num_states)
         while True:
-            delta = numpy.array([0] * self._environment.num_states)
             for state in range(self._environment.num_states):
                 v = self._environment.value_states[state]
                 self._environment.value_states[state] = self.__getExpectedReward(state)
-                delta[state] = max(delta[state], abs(v - self._environment.value_states[state]))
-            cond = delta <= theta
+                delta[state] = min(delta[state], abs(v - self._environment.value_states[state]))
+            cond = delta < temporal_theta
             if cond.all():
                 break
+
+    @property
+    def theta(self) -> PolicyEvaluation.theta:
+        return self.__policy_evaluation_theta
+
+    @theta.setter
+    def theta(self, t: PolicyEvaluation.theta) -> None:
+        self.__policy_evaluation_theta = t
