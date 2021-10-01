@@ -63,7 +63,7 @@ class GridWorld(Environment, metaclass=abc.ABCMeta):
 
     def __init__(self, num_states: state = 16,
                     state_row_size: state = 4,
-                    default_reward: reward = -1.0,
+                    default_reward: reward = 0.0,
                     terminal_reward: reward = 0.0,
                     terminal_states: List[state] = [0, 15],
                     irregular_transitions: Dict[state, Dict[Actions, Tuple[state, reward]]] = None,
