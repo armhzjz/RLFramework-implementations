@@ -1,6 +1,6 @@
 from typing import Dict
+from GridWorld import GridWorld
 import abc
-import GridWorld
 import numpy
 
 
