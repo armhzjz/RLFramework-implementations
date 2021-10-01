@@ -218,8 +218,9 @@ class StateValueGW(GridWorld):
                     )
                     rewards.append(self._irregular_transitions[state_][a][1])
                 else:
-                    state_prime__probs.append((self._calculate_next_state(a, state_), p))
-                    rewards.append(self._default_reward)
+                    state_prime = self._calculate_next_state(a, state_)
+                    state_prime__probs.append((state_prime, p))
+                    rewards.append(self._default_reward if state_prime not in self._terminal_states else self._terminal_reward)
 
         assert len(state_prime__probs) is len(rewards), \
             "Number of rewards is inconsistent with number of state primes and their probabilities."
