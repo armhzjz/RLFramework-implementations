@@ -1,4 +1,4 @@
-from GridWorld import GridWorld, BellmanEqus
+from GridWorld import GridWorld, DynamicProgramming
 
 
 if __name__ == "__main__":
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     )
     grid.Init(0)
 
-    polEval = BellmanEqus.BellmanStateValulePolEval(grid, theta=.01)
+    polEval = DynamicProgramming.PolicyEvaluation(grid, theta=.01)
     polEval.evaluatePolicy()
     print("State values calculated are:")
     print(grid.value_states)

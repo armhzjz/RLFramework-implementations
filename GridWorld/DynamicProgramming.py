@@ -4,7 +4,7 @@ import abc
 import numpy
 
 
-class PolicyEvaluation(metaclass=abc.ABCMeta):
+class DynamicProgramming(metaclass=abc.ABCMeta):
     Discount = float
     theta = float
     reward = float
@@ -20,26 +20,26 @@ class PolicyEvaluation(metaclass=abc.ABCMeta):
         self._policy = \
             {s: {a: 1. / len(environment.actions) for a in environment.actions.values()} for s in range(environment.num_states)} \
                 if policy is None else \
-            ({s: policy for s in self._num_states} if policy is Dict[PolicyEvaluation.Actn, PolicyEvaluation.ActnProb] else
+            ({s: policy for s in self._num_states} if policy is Dict[DynamicProgramming.Actn, DynamicProgramming.ActnProb] else
                 policy)
         self._gamma = gamma
-        if policy is Dict[PolicyEvaluation.State, Dict[PolicyEvaluation.Actn, PolicyEvaluation.ActnProb]]:
+        if policy is Dict[DynamicProgramming.State, Dict[DynamicProgramming.Actn, DynamicProgramming.ActnProb]]:
             assert (len(policy) == int(sum([p for di in policy.values() for p in di.values()]))), \
                 "Sum of probabilities of actions does not match number of states"
-        elif policy is Dict[PolicyEvaluation.Actn, PolicyEvaluation.ActnProb]:
+        elif policy is Dict[DynamicProgramming.Actn, DynamicProgramming.ActnProb]:
             assert (1. == sum(p for p in policy.values())), \
                 "Sum of probabilities given does not match 1.0"
 
 
-class BellmanStateValulePolEval(PolicyEvaluation):
+class PolicyEvaluation(DynamicProgramming):
     def __init__(self, environment: GridWorld.Environment,
-                    gamma: PolicyEvaluation.Discount = 0.9,
-                    theta: PolicyEvaluation.theta = 0.01,
-                    policy: Dict[PolicyEvaluation.State, Dict[PolicyEvaluation.Actn, PolicyEvaluation.ActnProb]] or Dict[PolicyEvaluation.Actn, PolicyEvaluation.ActnProb] or None = None) -> None:  # noqa: E501
+                    gamma: DynamicProgramming.Discount = 0.9,
+                    theta: DynamicProgramming.theta = 0.01,
+                    policy: Dict[DynamicProgramming.State, Dict[DynamicProgramming.Actn, DynamicProgramming.ActnProb]] or Dict[DynamicProgramming.Actn, DynamicProgramming.ActnProb] or None = None) -> None:  # noqa: E501
         super().__init__(environment, gamma, policy)
-        self.__policy_evaluation_theta = theta
+        self.__policy_Evaluation_theta = theta
 
-    def __getExpectedReward(self, state: PolicyEvaluation.State) -> PolicyEvaluation.reward:
+    def __getExpectedReward(self, state: DynamicProgramming.State) -> DynamicProgramming.reward:
         actions = self._policy[state]
         expected_reward = 0
 
@@ -51,8 +51,8 @@ class BellmanStateValulePolEval(PolicyEvaluation):
             expected_reward += ap * state_prime__reward_summatory
         return expected_reward
 
-    def evaluatePolicy(self, theta: PolicyEvaluation.theta = None) -> None:
-        temporal_theta = theta if theta is not None else self.__policy_evaluation_theta
+    def evaluatePolicy(self, theta: DynamicProgramming.theta = None) -> None:
+        temporal_theta = theta if theta is not None else self.__policy_Evaluation_theta
         delta = numpy.array([numpy.inf] * self._environment.num_states)
         while True:
             for state in range(self._environment.num_states):
@@ -64,9 +64,9 @@ class BellmanStateValulePolEval(PolicyEvaluation):
                 break
 
     @property
-    def theta(self) -> PolicyEvaluation.theta:
-        return self.__policy_evaluation_theta
+    def theta(self) -> DynamicProgramming.theta:
+        return self.__policy_Evaluation_theta
 
     @theta.setter
-    def theta(self, t: PolicyEvaluation.theta) -> None:
-        self.__policy_evaluation_theta = t
+    def theta(self, t: DynamicProgramming.theta) -> None:
+        self.__policy_Evaluation_theta = t
