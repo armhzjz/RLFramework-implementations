@@ -61,13 +61,13 @@ class GridWorld(Environment, metaclass=abc.ABCMeta):
     reward = Environment.reward
     t_prob = Environment.t_prob
 
-    def __init__(self, num_states: state = 16,
-                    state_row_size: state = 4,
-                    default_reward: reward = 0.0,
-                    terminal_reward: reward = 0.0,
-                    terminal_states: List[state] = [0, 15],
-                    irregular_transitions: Dict[state, Dict[Actions, Tuple[state, reward]]] = None,
-                    action_overriding_probs: Dict[state, Dict[Actions, t_prob]] or t_prob = None) -> None:
+    def __init__(self, num_states: state,
+                    state_row_size: state,
+                    default_reward: reward,
+                    terminal_reward: reward,
+                    terminal_states: List[state],
+                    irregular_transitions: Dict[state, Dict[Actions, Tuple[state, reward]]],
+                    action_overriding_probs: Dict[state, Dict[Actions, t_prob]] or t_prob) -> None:
         self._num_states = num_states
         self._state_row_size = state_row_size
         self._default_reward = default_reward
