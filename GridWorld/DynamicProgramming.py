@@ -43,6 +43,12 @@ class PolicyEvaluation(DynamicProgramming):
         actions = self._policy[state]
         expected_reward = 0
 
+        # if the state is a terminal state, there is no next state and
+        # the returned reward must zero, given that the episode would be
+        # immediately terminated (besides, terminal states have no state value).
+        if state in self._environment._terminal_states:
+            return DynamicProgramming.reward(0)
+
         for a, ap in zip(actions.keys(), actions.values()):
             sp, sp_prob, r = self._environment.getPossibleNextStsRew(a, state)
             state_prime__reward_summatory = 0
