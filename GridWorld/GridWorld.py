@@ -241,28 +241,28 @@ class StateValueGW(GridWorld):
         self.__lock = threading.Lock()
 
     def Init(self, initial_state: GridWorld.state = None):
-        self.__value_states = [uniform(1, 100)] * self._num_states if self.__random_state_values else [0] * self._num_states
-        self.__state_visits = [0] * self._num_states
+        self._value_states = [uniform(1, 100)] * self._num_states if self.__random_state_values else [0] * self._num_states
+        self._state_visits = [0] * self._num_states
         self._current_state = randint(0, self._num_states - 1) if initial_state is None else initial_state
 
     @property
     def value_states(self) -> List[Environment.s_sa_value]:
         with self.__lock:
-            ret_val = self.__value_states
+            ret_val = self._value_states
         return ret_val
 
     @value_states.setter
     def value_states(self, val: Environment.s_sa_value) -> None:
         assert type(val) != list, "Value must not be a list AND it must be assigned to an element of property."
         with self.__lock:
-            self.__value_states = val
+            self._value_states = val
 
     @property
     def state_visits(self) -> List[Environment.state_visits]:
-        return self.__state_visits
+        return self._state_visits
 
 
-class StateActionValueGW(GridWorld):
+class StateActionValueGW(StateValueGW):
     def __init__(self, num_states: GridWorld.state = 16,
                     state_row_size: GridWorld.state = 4,
                     default_reward: GridWorld.reward = 0.0,
@@ -270,32 +270,28 @@ class StateActionValueGW(GridWorld):
                     terminal_states: List[GridWorld.state] = [0, 15],
                     irregular_transitions: Dict[GridWorld.state, Dict[GridWorld.Actions, Tuple[GridWorld.state, GridWorld.reward]]] = None,
                     action_overriding_probs: Dict[GridWorld.state, Dict[GridWorld.Actions, GridWorld.t_prob]] or GridWorld. t_prob = None,
+                    random_state_values: bool = False,
                     random_stateaction_values: bool = False) -> None:
         super().__init__(num_states, state_row_size, default_reward, terminal_reward,
-                            terminal_states, irregular_transitions, action_overriding_probs)
+                            terminal_states, irregular_transitions, action_overriding_probs, random_state_values)
         self.__random_stateaction_values = random_stateaction_values
-        self.__lock = threading.Lock()
+        self.__lock_state_value = threading.Lock()
 
     def Init(self, initial_state: GridWorld.state = None):
+        super(StateActionValueGW, self).Init(initial_state)
         if self.__random_stateaction_values:
             self.__stateAction_values = {s: {a: uniform(1, 100) for a in range(GridWorld.Actions.TOTAL)} for s in range(self._num_states)}
         else:
             self.__stateAction_values = {s: {a: 0 for a in range(GridWorld.Actions.TOTAL)} for s in range(self._num_states)}
-        self.__state_visits = [0] * self._num_states
-        self._current_state = randint(0, self._num_states - 1) if initial_state is None else initial_state
 
     @property
     def stateAction_values(self) -> Dict[GridWorld.state, Dict[GridWorld.Actions, GridWorld.t_prob]]:
-        with self.__lock_:
+        with self.__lock_state_value:
             ret_val = self.__stateAction_values
         return ret_val
 
     @stateAction_values.setter
     def stateAction_values(self, action_value: Dict[GridWorld.Actions, GridWorld.t_prob]) -> None:
         assert type(action_value) == dict, "Value must be a diccionary AND it must be assigned to an element of property."
-        with self.__lock:
+        with self.__lock_state_value:
             self.__stateAction_values = action_value
-
-    @property
-    def state_visits(self) -> List[Environment.state_visits]:
-        return self.__state_visits

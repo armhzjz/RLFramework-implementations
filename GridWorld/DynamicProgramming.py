@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 from GridWorld import GridWorld
 import abc
 import numpy
@@ -76,3 +76,33 @@ class PolicyEvaluation(DynamicProgramming):
     @theta.setter
     def theta(self, t: DynamicProgramming.theta) -> None:
         self.__policy_Evaluation_theta = t
+
+
+class EstimationActionValue(PolicyEvaluation):
+    def __init__(self, environment: GridWorld.Environment,
+                    gamma: DynamicProgramming.Discount = 0.9,
+                    theta: DynamicProgramming.theta = 0.01,
+                    policy: Dict[DynamicProgramming.State, Dict[DynamicProgramming.Actn, DynamicProgramming.ActnProb]] or Dict[DynamicProgramming.Actn, DynamicProgramming.ActnProb] or None = None) -> None:  # noqa: E501
+        super().__init__(environment, gamma, theta, policy)
+
+    def EstimateActionValue(self, value_states: List[GridWorld.Environment.s_sa_value] = None):
+        # if value states are given as input, check that its dimentions match
+        # the environment's value state
+        if value_states is not None:
+            assert len(value_states) is len(self._environment.value_states), \
+                "Dimentions of given value states and value states of the environment does not match."
+            state_values = value_states
+        else:
+            super(EstimationActionValue, self).evaluatePolicy()
+            state_values = self._environment.value_states
+
+        for state in range(self._environment.num_states):
+            if self._environment.irregular_transitions is not None and \
+                self._environment.current_state in self._environment.irregular_transitions:
+                actions = self._environment.irregular_transitions[self._environment.current_state].keys()
+            else:
+                actions = self._environment.actions.values()
+            for action in actions:
+                sp, sp_prob, r = self._environment.getPossibleNextStsRew(action, state)
+                for state_prime, state_prime_p, reward in zip(sp, sp_prob, r):
+                    self._environment.stateAction_values[state][action] = state_prime_p * (reward + self._gamma * state_values[state_prime])
