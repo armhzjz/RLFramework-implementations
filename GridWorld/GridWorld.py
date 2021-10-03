@@ -168,45 +168,17 @@ class GridWorld(Environment, metaclass=abc.ABCMeta):
     def isEpisodeEnded(self):
         return (self._current_state in self._terminal_states)
 
-    @property
-    def actions(self) -> dict:
-        return {e.name: action for e, action in zip(GridWorld.Actions, range(GridWorld.Actions.TOTAL))}
-
-    @property
-    def num_states(self) -> state:
-        return self._num_states
-
-    @property
-    def current_state(self) -> state:
-        return self._current_state
-
-
-class StateValueGW(GridWorld):
-    def __init__(self, num_states: GridWorld.state = 16,
-                    state_row_size: GridWorld.state = 4,
-                    default_reward: GridWorld.reward = 0.0,
-                    terminal_reward: GridWorld.reward = 0.0,
-                    terminal_states: List[GridWorld.state] = [0, 15],
-                    irregular_transitions: Dict[GridWorld.state, Dict[GridWorld.Actions, Tuple[GridWorld.state, GridWorld.reward]]] = None,
-                    action_overriding_probs: Dict[GridWorld.state, Dict[GridWorld.Actions, GridWorld.t_prob]] or GridWorld. t_prob = None,
-                    random_state_values: bool = False) -> None:
-        super().__init__(num_states, state_row_size, default_reward, terminal_reward,
-                            terminal_states, irregular_transitions, action_overriding_probs)
-        self.__random_state_values = random_state_values
-        self.__lock = threading.Lock()
-
-    def Init(self, initial_state: GridWorld.state = None):
-        self.__value_states = [uniform(1, 100)] * self._num_states if self.__random_state_values else [0] * self._num_states
-        self.__state_visits = [0] * self._num_states
-        self._current_state = randint(0, self._num_states - 1) if initial_state is None else initial_state
-
-    def getPossibleNextStsRew(self, action: GridWorld.Actions, state: GridWorld.state = None) -> List[Tuple]:
+    def getPossibleNextStsRew(self, action: Actions, state: state = None) -> List[Tuple]:
         # irregular_transitions: Dict[state, Dict[Actions, Tuple[state, reward]]] = None,
         # action_overriding_probs: Dict[state, Dict[Actions, t_prob]] or t_prob = None)
         actions, action_probs = self._getActionProbabilities(action) if state is None else self._getActionProbabilities(action, state)
         actions__action_probs = [(actions[i], action_probs[i]) for i in range(len(actions))]
 
-        state_ = state if state is not None else self._current_state
+        try:
+            state_ = state if state is not None else self._current_state
+        except AttributeError:
+            print("This instance has no current state yet. It must be Initiated first.")
+            return
         state_prime__probs = []
         rewards = []
 
@@ -232,6 +204,46 @@ class StateValueGW(GridWorld):
         sp_probs = tuple([t[1] for t in state_prime__probs])
         # tuple of rewards included directly in the returned list
         return [sp, sp_probs, tuple(rewards)]
+
+    @property
+    def actions(self) -> dict:
+        return {e.name: action for e, action in zip(GridWorld.Actions, range(GridWorld.Actions.TOTAL))}
+
+    @property
+    def num_states(self) -> state:
+        return self._num_states
+
+    @property
+    def current_state(self) -> state:
+        try:
+            return self._current_state
+        except AttributeError:
+            print("This instance has no current state yet. It must be Initiated first.")
+            return
+
+    @property
+    def irregular_transitions(self) -> Dict[state, Dict[Actions, Tuple[state, reward]]] or None:
+        return self._irregular_transitions
+
+
+class StateValueGW(GridWorld):
+    def __init__(self, num_states: GridWorld.state = 16,
+                    state_row_size: GridWorld.state = 4,
+                    default_reward: GridWorld.reward = 0.0,
+                    terminal_reward: GridWorld.reward = 0.0,
+                    terminal_states: List[GridWorld.state] = [0, 15],
+                    irregular_transitions: Dict[GridWorld.state, Dict[GridWorld.Actions, Tuple[GridWorld.state, GridWorld.reward]]] = None,
+                    action_overriding_probs: Dict[GridWorld.state, Dict[GridWorld.Actions, GridWorld.t_prob]] or GridWorld. t_prob = None,
+                    random_state_values: bool = False) -> None:
+        super().__init__(num_states, state_row_size, default_reward, terminal_reward,
+                            terminal_states, irregular_transitions, action_overriding_probs)
+        self.__random_state_values = random_state_values
+        self.__lock = threading.Lock()
+
+    def Init(self, initial_state: GridWorld.state = None):
+        self.__value_states = [uniform(1, 100)] * self._num_states if self.__random_state_values else [0] * self._num_states
+        self.__state_visits = [0] * self._num_states
+        self._current_state = randint(0, self._num_states - 1) if initial_state is None else initial_state
 
     @property
     def value_states(self) -> List[Environment.s_sa_value]:
