@@ -46,7 +46,7 @@ class Environment(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def getPossibleNextStsRew(Actions):
+    def getPossibleNextStsRew(Actions, state):
         raise NotImplementedError
 
 
@@ -205,6 +205,57 @@ class GridWorld(Environment, metaclass=abc.ABCMeta):
         # tuple of rewards included directly in the returned list
         return [sp, sp_probs, tuple(rewards)]
 
+    def addIrregularState(self,
+                            istate: Dict[state, Dict[Actions, Tuple[state, reward]]],
+                            isTerminal: bool or List[state] = False,
+                            action_overriding_probs: Dict[state, Dict[Actions, t_prob]] or t_prob = None,
+                            overwrite: bool = False) -> None:
+        # a better solution for this type checking must be found here.
+        # for the moment I make a very cumbersome and kind of idiotic check
+        # just to have it present and obvious as a room of improvement when reading
+        # the code.
+        assert isinstance(istate, dict) and \
+                isinstance(list(istate.keys())[0], int) and \
+                isinstance(list(istate.values())[0], dict) and \
+                isinstance(list(list(istate.values())[0].keys())[0], GridWorld.state) and \
+                isinstance(list(list(istate.values())[0].values())[0], tuple) and \
+                isinstance(list(list(istate.values())[0].values())[0][0], GridWorld.state) and \
+                isinstance(list(list(istate.values())[0].values())[0][1], GridWorld.reward), \
+                "Argument irregular_transitions must be either None or a complex dictionary. Take a look at its type hint."
+
+        if overwrite:
+            self._irregular_transitions = None
+
+        # if every assertion is true, then:
+        # add the irregular transition to this environment
+        self._irregular_transitions = istate if self._irregular_transitions is None else self._irregular_transitions.update(istate)
+        # any of the new irregular states is a terminal state?
+        if isTerminal is True or isinstance(isTerminal, list):
+            self._terminal_states.extend([s for s in istate.keys()])
+        # update the action overriding probabilities (or next state probabilities)
+        if action_overriding_probs is None:
+            self._action_overriding_probs.update({s: {a: 0 for a in range(GridWorld.Actions.TOTAL)} for s in istate.keys()})
+        elif isinstance(action_overriding_probs, GridWorld.t_prob):
+            self._action_overriding_probs.update(
+                        {s: {a: action_overriding_probs for a in range(GridWorld.Actions.TOTAL)} for s in istate.keys()}
+            )
+        else:
+            self._action_overriding_probs.update(action_overriding_probs)
+        # update the number of states (there might be states which will not play any role since they will not be part of either
+        # the irregular states nor have any probable action assigned to them).
+        n_states = self._num_states
+        irregulars = list(istate.keys())
+        for _ in irregulars:
+            if n_states in irregulars:
+                n_states += 1
+        nstates = [n_states]
+        nstates.extend(istate.keys())
+        self._num_states = max(nstates)
+        if self._value_states is not None:
+            self._value_states.extend([0 for s in istate.keys()])
+        if self._state_visits is not None:
+            self._state_visits.extend([0 for s in istate.keys()])
+
     @property
     def actions(self) -> dict:
         return {e.name: action for e, action in zip(GridWorld.Actions, range(GridWorld.Actions.TOTAL))}
@@ -220,6 +271,10 @@ class GridWorld(Environment, metaclass=abc.ABCMeta):
         except AttributeError:
             print("This instance has no current state yet. It must be Initiated first.")
             return
+
+    @property
+    def default_reward(self):
+        return self._default_reward
 
     @property
     def irregular_transitions(self) -> Dict[state, Dict[Actions, Tuple[state, reward]]] or None:
