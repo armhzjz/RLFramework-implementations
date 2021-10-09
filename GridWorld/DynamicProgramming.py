@@ -105,4 +105,5 @@ class EstimationActionValue(PolicyEvaluation):
             for action in actions:
                 sp, sp_prob, r = self._environment.getPossibleNextStsRew(action, state)
                 for state_prime, state_prime_p, reward in zip(sp, sp_prob, r):
-                    self._environment.stateAction_values[state][action] = state_prime_p * (reward + self._gamma * state_values[state_prime])
+                    self._environment.stateAction_values[state][action] += \
+                                                                        state_prime_p * (reward + self._gamma * state_values[state_prime])
