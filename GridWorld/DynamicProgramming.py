@@ -91,7 +91,7 @@ class TruncatedPolicyEvaluation(DynamicProgramming):
     def __init__(self, environment: GridWorld.Environment,
                     max_iterations: int,
                     gamma: DynamicProgramming.Discount = 0.9,
-                    value_states: Dict[DynamicProgramming.State] = None,
+                    value_states: List[DynamicProgramming.State] = None,
                     policy: Dict[DynamicProgramming.State, Dict[DynamicProgramming.Actn, DynamicProgramming.ActnProb]] or Dict[DynamicProgramming.Actn, DynamicProgramming.ActnProb] or None = None) -> None:  # noqa: E501
         super().__init__(environment, gamma, policy)
         assert len(value_states) == environment.num_states, "Length of value_states must equal number of states of the environment."
@@ -189,7 +189,6 @@ class PolicyImprovement(PolicyEvaluation):
                                                                         state_prime_p * (reward + self._gamma * state_values[state_prime])
             state_actions = numpy.array([ap for ap in self._environment.stateAction_values[state].values()])
             for a in actions:
-                print("in action: ", a)
                 self._policy[state][a] = 1. if a == state_actions.argmax() else 0.
 
     def __call__(self, value_states: List[GridWorld.Environment.s_sa_value] = None) -> None:
